@@ -5,6 +5,7 @@ from .views import (
     NucleiTemplateViewSet,
     WordlistViewSet,
     ScanViewSet,
+    ScheduledScanViewSet,
     health_check,
 )
 
@@ -13,6 +14,7 @@ router.register("semgrep-rules", SemgrepRuleViewSet, basename="semgrep-rules")
 router.register("nuclei-templates", NucleiTemplateViewSet, basename="nuclei-templates")
 router.register("wordlists", WordlistViewSet, basename="wordlists")
 router.register("scans", ScanViewSet, basename="scans")
+router.register("scheduled-scans", ScheduledScanViewSet, basename="scheduled-scans")
 
 urlpatterns = [
     path("", include(router.urls)),

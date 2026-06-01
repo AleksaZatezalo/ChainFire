@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Scan, SemgrepRule, NucleiTemplate, Wordlist
+from .models import Scan, SemgrepRule, NucleiTemplate, Wordlist, ScheduledScan
 
 
 class SemgrepRuleSerializer(serializers.ModelSerializer):
@@ -107,3 +107,34 @@ class ScanListSerializer(serializers.ModelSerializer):
 
     def get_nuclei_count(self, obj: Scan) -> int:
         return len(obj.nuclei_findings)
+
+
+class ScheduledScanSerializer(serializers.ModelSerializer):
+    semgrep_rule_name    = serializers.SerializerMethodField()
+    nuclei_template_name = serializers.SerializerMethodField()
+    wordlist_name        = serializers.SerializerMethodField()
+    interval_display     = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ScheduledScan
+        fields = [
+            "id", "label", "target_url", "source_path", "scan_mode",
+            "semgrep_rule", "semgrep_rule_name",
+            "nuclei_template", "nuclei_template_name",
+            "wordlist", "wordlist_name",
+            "min_severity", "interval", "interval_display",
+            "enabled", "last_run", "next_run", "created_at",
+        ]
+        read_only_fields = ["id", "last_run", "next_run", "created_at"]
+
+    def get_semgrep_rule_name(self, obj):
+        return obj.semgrep_rule.name if obj.semgrep_rule else None
+
+    def get_nuclei_template_name(self, obj):
+        return obj.nuclei_template.name if obj.nuclei_template else None
+
+    def get_wordlist_name(self, obj):
+        return obj.wordlist.name if obj.wordlist else None
+
+    def get_interval_display(self, obj):
+        return obj.get_interval_display()

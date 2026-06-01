@@ -555,6 +555,116 @@ textarea.form-control {
   50%       { opacity: 0.65; }
 }
 
+/* ── Auth pages ──────────────────────────────────────────────────────────────── */
+.auth-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-app);
+  padding: 20px;
+}
+
+.auth-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 32px 36px;
+  width: 100%;
+  max-width: 420px;
+}
+
+.auth-logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 24px;
+}
+
+.auth-logo-icon {
+  font-size: 22px;
+}
+
+.auth-title {
+  font-size: 20px;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.auth-subtitle {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 20px;
+}
+
+.auth-links {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 20px;
+  font-size: 13px;
+  color: var(--text-muted);
+  flex-wrap: wrap;
+}
+
+.auth-links a {
+  color: var(--blue-light);
+  text-decoration: none;
+}
+.auth-links a:hover {
+  text-decoration: underline;
+}
+
+.auth-link-sep {
+  color: var(--border);
+}
+
+/* ── Sidebar user footer ─────────────────────────────────────────────────────── */
+.sidebar-user {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  border-top: 1px solid var(--border);
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.sidebar-user-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.sidebar-user-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sidebar-logout-btn {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 3px 8px;
+  font-size: 14px;
+  flex-shrink: 0;
+  transition: color 0.12s, border-color 0.12s;
+}
+.sidebar-logout-btn:hover {
+  color: var(--text);
+  border-color: var(--text-muted);
+}
+
 /* ── Tab bar ─────────────────────────────────────────────────────────────────── */
 .tab-bar {
   display: flex;

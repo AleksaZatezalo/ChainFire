@@ -2,6 +2,15 @@
 
 A web-based security testing platform that chains **Semgrep** (SAST) and **Nuclei** (DAST) into a single browser-driven workflow. Semgrep analyses source code to find vulnerability patterns; those findings automatically select the Nuclei templates that probe the running application over HTTP.
 
+## Features
+
+- **Chained Scan** — Semgrep findings automatically drive Nuclei template selection. No manual tag configuration.
+- **Custom Rules mode** — Run a specific Semgrep rule and Nuclei template for precise control.
+- **Scheduled scans** — Run any scan on a recurring schedule (15 min → 7 days). Fires automatically in the background.
+- **Authentication** — Session-based login with admin approval workflow and security-question password reset.
+- **PDF export** — Download a formatted report of any completed scan.
+- **Resource management** — Create and edit Semgrep rules, Nuclei templates, and wordlists directly in the browser.
+
 ## Architecture
 
 ```
@@ -56,6 +65,32 @@ Open **http://localhost:1337**.
 
 > First build downloads Nuclei and installs Semgrep — allow a few minutes. Subsequent builds use the layer cache and are fast.
 
+**3. Create an account**
+
+The first user to register is automatically granted admin access. All subsequent registrations require admin approval from the Admin panel before the user can log in.
+
+## Authentication
+
+### Registration
+
+- Navigate to `http://localhost:1337` and click **Create account**.
+- Choose a username, password (min 6 characters), and a security question with an answer.
+- The **first account registered becomes the administrator** and is logged in immediately.
+- All subsequent accounts are pending until an admin approves them in the Admin panel.
+
+### Password Reset
+
+1. Click **Forgot password?** on the login page.
+2. Enter your username — the system looks up your security question.
+3. Answer the question and set a new password.
+
+### Admin Panel
+
+Admins can access `/admin` (via the sidebar) to:
+- **Approve** or **reject** pending user registrations.
+- **Revoke** access from existing users.
+- **Delete** user accounts.
+
 ## Scanning Source Code
 
 The backend container mounts `SOURCE_DIR` from your Mac at `/workspace/source`. In the scan form you can enter either:
@@ -79,7 +114,25 @@ If Semgrep produces no findings, Nuclei is skipped — the scan does not fall ba
 
 ### Custom Rules
 
-Run a specific semgrep rule against the source code and a specific Nuclei template against the target. Use this when you want precise control over what runs.
+Run a specific Semgrep rule against the source code and a specific Nuclei template against the target. Use this when you want precise control over what runs.
+
+## Scheduled Scans
+
+Navigate to **Scheduled Scans** and click **+ New Schedule**.
+
+| Field            | Description                                                  |
+|------------------|--------------------------------------------------------------|
+| Label            | Optional display name                                        |
+| Target URL       | Base URL of the app under test                               |
+| Source Code Path | Optional path for Semgrep SAST                               |
+| Interval         | 15 minutes / 1 hour / 6 hours / 24 hours / 7 days           |
+| Scan Mode        | Chained Scan or Custom Rules                                 |
+| Semgrep Rule     | Used in Custom Rules mode                                    |
+| Nuclei Template  | Used in Custom Rules mode                                    |
+| Wordlist         | Expands the target into an endpoint list                     |
+| Min Severity     | Minimum Semgrep severity for tag mapping                     |
+
+A background thread checks every 60 seconds for due schedules and creates a regular scan record for each one. Results appear in the **Results** page. Schedules can be individually enabled, disabled, or deleted.
 
 ## Usage
 
@@ -134,7 +187,7 @@ Custom templates hardcode their own paths (`{{BaseURL}}/api/foo`). Do not combin
 
 ### 3. Wordlists
 
-Navigate to **Wordlists** and enter one path per line. Lines beginning with `#` are comments. The paths are combined with the target URL to form the nuclei target list — used with community templates in Chained Scan mode.
+Navigate to **Wordlists** and enter one path per line. Lines beginning with `#` are comments. The paths are combined with the target URL to form the Nuclei target list — used with community templates in Chained Scan mode.
 
 ```
 /api/v1/users
@@ -162,6 +215,8 @@ Navigate to **Scanner**:
 ### 5. Results
 
 Navigate to **Results**. Click any row to expand findings. Semgrep and Nuclei findings are shown in separate tabs. Rows pulse while a scan is running.
+
+For any completed scan, click **↓ Export PDF** to download a formatted report containing scan metadata, all Semgrep findings, and all Nuclei findings with severity colour coding.
 
 ## Semgrep → Nuclei Tag Mapping
 
@@ -191,14 +246,21 @@ dast/
 │   ├── requirements.txt
 │   ├── manage.py
 │   ├── config/                      # Django settings & URL root
+│   ├── accounts/                    # Auth app
+│   │   ├── models.py                # UserProfile (approval status, security question)
+│   │   ├── permissions.py           # IsApprovedUser DRF permission
+│   │   ├── views.py                 # register, login, logout, reset, admin endpoints
+│   │   └── urls.py
 │   └── scanner/
-│       ├── models.py                # SemgrepRule, NucleiTemplate, Wordlist, Scan
+│       ├── models.py                # SemgrepRule, NucleiTemplate, Wordlist, Scan, ScheduledScan
 │       ├── serializers.py
 │       ├── views.py                 # DRF ViewSets + health endpoint
 │       ├── urls.py
+│       ├── apps.py                  # Starts background scheduler on startup
 │       ├── management/commands/
 │       │   └── seed_defaults.py     # Default rules, templates, wordlists
 │       └── services/
+│           ├── scheduler.py         # Background thread — fires due ScheduledScans
 │           ├── tag_mapper.py        # Semgrep finding → Nuclei tag mapping
 │           ├── semgrep_service.py   # Semgrep subprocess wrapper
 │           ├── nuclei_service.py    # Nuclei subprocess wrapper
@@ -208,14 +270,23 @@ dast/
     ├── nginx.conf
     ├── package.json
     └── src/
-        ├── api/client.js
+        ├── api/client.js            # Axios instance with CSRF + session handling
+        ├── context/
+        │   └── AuthContext.jsx      # Auth state provider
         ├── components/
-        │   ├── Layout.jsx
+        │   ├── Layout.jsx           # Sidebar nav + user/logout footer
         │   ├── ResourceManager.jsx
         │   └── FindingsTable.jsx
+        ├── utils/
+        │   └── exportPdf.js         # jsPDF scan report generator
         └── pages/
+            ├── LoginPage.jsx
+            ├── RegisterPage.jsx
+            ├── ForgotPasswordPage.jsx
+            ├── AdminPage.jsx
             ├── ScannerPage.jsx
             ├── ResultsPage.jsx
+            ├── ScheduledScansPage.jsx
             ├── SemgrepRulesPage.jsx
             ├── NucleiTemplatesPage.jsx
             └── WordlistsPage.jsx
@@ -223,27 +294,55 @@ dast/
 
 ## API Reference
 
-All endpoints are prefixed with `/api/`.
+All endpoints under `/api/` require an authenticated, approved session except where noted.
 
-| Method | Path                          | Description                |
-|--------|-------------------------------|----------------------------|
-| GET    | `/api/semgrep-rules/`         | List semgrep rules         |
-| POST   | `/api/semgrep-rules/`         | Create semgrep rule        |
-| PUT    | `/api/semgrep-rules/{id}/`    | Update semgrep rule        |
-| DELETE | `/api/semgrep-rules/{id}/`    | Delete semgrep rule        |
-| GET    | `/api/nuclei-templates/`      | List nuclei templates      |
-| POST   | `/api/nuclei-templates/`      | Create nuclei template     |
-| PUT    | `/api/nuclei-templates/{id}/` | Update nuclei template     |
-| DELETE | `/api/nuclei-templates/{id}/` | Delete nuclei template     |
-| GET    | `/api/wordlists/`             | List wordlists             |
-| POST   | `/api/wordlists/`             | Create wordlist            |
-| PUT    | `/api/wordlists/{id}/`        | Update wordlist            |
-| DELETE | `/api/wordlists/{id}/`        | Delete wordlist            |
-| GET    | `/api/scans/`                 | List scans                 |
-| POST   | `/api/scans/`                 | Start a new scan           |
-| GET    | `/api/scans/{id}/`            | Get scan detail + findings |
-| DELETE | `/api/scans/{id}/`            | Delete scan                |
-| GET    | `/api/health/`                | Binary availability check  |
+### Auth (`/api/auth/`) — public
+
+| Method | Path                           | Description                              |
+|--------|--------------------------------|------------------------------------------|
+| GET    | `/api/auth/csrf/`              | Set CSRF cookie (call before POST requests) |
+| GET    | `/api/auth/me/`                | Current session info                     |
+| POST   | `/api/auth/register/`          | Register new account                     |
+| POST   | `/api/auth/login/`             | Log in                                   |
+| POST   | `/api/auth/logout/`            | Log out                                  |
+| POST   | `/api/auth/security-question/` | Look up a user's security question       |
+| POST   | `/api/auth/reset-password/`    | Reset password via security question     |
+
+### Admin (`/api/auth/`) — admin only
+
+| Method | Path                              | Description          |
+|--------|-----------------------------------|----------------------|
+| GET    | `/api/auth/users/`                | List all users       |
+| POST   | `/api/auth/users/{id}/approve/`   | Approve a user       |
+| POST   | `/api/auth/users/{id}/revoke/`    | Revoke user access   |
+| DELETE | `/api/auth/users/{id}/`           | Delete a user        |
+
+### Scanner (`/api/`) — authenticated
+
+| Method | Path                                   | Description                        |
+|--------|----------------------------------------|------------------------------------|
+| GET    | `/api/semgrep-rules/`                  | List semgrep rules                 |
+| POST   | `/api/semgrep-rules/`                  | Create semgrep rule                |
+| PUT    | `/api/semgrep-rules/{id}/`             | Update semgrep rule                |
+| DELETE | `/api/semgrep-rules/{id}/`             | Delete semgrep rule                |
+| GET    | `/api/nuclei-templates/`               | List nuclei templates              |
+| POST   | `/api/nuclei-templates/`               | Create nuclei template             |
+| PUT    | `/api/nuclei-templates/{id}/`          | Update nuclei template             |
+| DELETE | `/api/nuclei-templates/{id}/`          | Delete nuclei template             |
+| GET    | `/api/wordlists/`                      | List wordlists                     |
+| POST   | `/api/wordlists/`                      | Create wordlist                    |
+| PUT    | `/api/wordlists/{id}/`                 | Update wordlist                    |
+| DELETE | `/api/wordlists/{id}/`                 | Delete wordlist                    |
+| GET    | `/api/scans/`                          | List scans                         |
+| POST   | `/api/scans/`                          | Start a new scan                   |
+| GET    | `/api/scans/{id}/`                     | Get scan detail + findings         |
+| DELETE | `/api/scans/{id}/`                     | Delete scan                        |
+| GET    | `/api/scheduled-scans/`               | List scheduled scans               |
+| POST   | `/api/scheduled-scans/`               | Create scheduled scan              |
+| PUT    | `/api/scheduled-scans/{id}/`          | Update scheduled scan              |
+| DELETE | `/api/scheduled-scans/{id}/`          | Delete scheduled scan              |
+| POST   | `/api/scheduled-scans/{id}/toggle/`   | Enable / disable scheduled scan    |
+| GET    | `/api/health/`                         | Binary availability check (public) |
 
 ## Security Notes
 

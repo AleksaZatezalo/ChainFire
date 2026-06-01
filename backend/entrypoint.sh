@@ -25,6 +25,29 @@ schema_updates = [
     ),
 ]
 
+# Create ScheduledScan table if it doesn't exist
+cursor2 = connection.cursor()
+cursor2.execute("""
+    CREATE TABLE IF NOT EXISTS scanner_scheduledscan (
+        id VARCHAR(36) PRIMARY KEY,
+        label VARCHAR(255) NOT NULL DEFAULT '',
+        target_url VARCHAR(200) NOT NULL,
+        source_path VARCHAR(512) NOT NULL DEFAULT '',
+        scan_mode VARCHAR(20) NOT NULL DEFAULT 'semgrep_all',
+        semgrep_rule_id VARCHAR(36) REFERENCES scanner_semgregrule(id) ON DELETE SET NULL,
+        nuclei_template_id VARCHAR(36) REFERENCES scanner_nucleitemplate(id) ON DELETE SET NULL,
+        wordlist_id VARCHAR(36) REFERENCES scanner_wordlist(id) ON DELETE SET NULL,
+        min_severity VARCHAR(20) NOT NULL DEFAULT 'info',
+        interval VARCHAR(10) NOT NULL DEFAULT '24h',
+        enabled INTEGER NOT NULL DEFAULT 1,
+        last_run DATETIME,
+        next_run DATETIME,
+        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )
+""")
+cursor2.close()
+print("  ScheduledScan table ready")
+
 with connection.cursor() as cursor:
     for col, sql in schema_updates:
         try:

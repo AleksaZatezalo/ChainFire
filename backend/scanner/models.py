@@ -135,3 +135,58 @@ class Scan(models.Model):
 
     def __str__(self) -> str:
         return self.label or f"Scan {self.id}"
+
+
+class ScheduledScan(models.Model):
+    INTERVAL_15M  = "15m"
+    INTERVAL_1H   = "1h"
+    INTERVAL_6H   = "6h"
+    INTERVAL_24H  = "24h"
+    INTERVAL_7D   = "7d"
+
+    INTERVAL_CHOICES = [
+        (INTERVAL_15M, "Every 15 minutes"),
+        (INTERVAL_1H,  "Every hour"),
+        (INTERVAL_6H,  "Every 6 hours"),
+        (INTERVAL_24H, "Every 24 hours"),
+        (INTERVAL_7D,  "Every 7 days"),
+    ]
+
+    INTERVAL_SECONDS = {
+        INTERVAL_15M: 15 * 60,
+        INTERVAL_1H:  60 * 60,
+        INTERVAL_6H:  6 * 60 * 60,
+        INTERVAL_24H: 24 * 60 * 60,
+        INTERVAL_7D:  7 * 24 * 60 * 60,
+    }
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    label = models.CharField(max_length=255, blank=True)
+    target_url = models.URLField()
+    source_path = models.CharField(max_length=512, blank=True)
+    scan_mode = models.CharField(
+        max_length=20, default=Scan.SCAN_MODE_SEMGREP_ALL, choices=Scan.SCAN_MODE_CHOICES
+    )
+    semgrep_rule = models.ForeignKey(
+        SemgrepRule, on_delete=models.SET_NULL, null=True, blank=True
+    )
+    nuclei_template = models.ForeignKey(
+        NucleiTemplate, on_delete=models.SET_NULL, null=True, blank=True
+    )
+    wordlist = models.ForeignKey(
+        Wordlist, on_delete=models.SET_NULL, null=True, blank=True
+    )
+    min_severity = models.CharField(max_length=20, default="info")
+    interval = models.CharField(
+        max_length=10, choices=INTERVAL_CHOICES, default=INTERVAL_24H
+    )
+    enabled = models.BooleanField(default=True)
+    last_run = models.DateTimeField(null=True, blank=True)
+    next_run = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self) -> str:
+        return self.label or f"Schedule {self.id}"
