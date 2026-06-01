@@ -126,6 +126,15 @@ class Scan(models.Model):
         default=list, help_text="Nuclei tags derived from semgrep findings."
     )
     error_message = models.TextField(blank=True)
+
+    REPORT_STATUS_NONE      = ""
+    REPORT_STATUS_PENDING   = "pending"
+    REPORT_STATUS_RUNNING   = "running"
+    REPORT_STATUS_COMPLETED = "completed"
+    REPORT_STATUS_FAILED    = "failed"
+
+    report_status = models.CharField(max_length=20, blank=True, default="")
+    ai_report     = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     started_at = models.DateTimeField(null=True, blank=True)
     completed_at = models.DateTimeField(null=True, blank=True)

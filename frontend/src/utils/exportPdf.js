@@ -29,7 +29,80 @@ function sevColor(sev) {
   return SEVERITY_COLORS[(sev || "info").toLowerCase()] || [100, 116, 139];
 }
 
-export function exportScanPdf(detail) {
+function addReportSection(doc, report, margin, y, pageW) {
+  const usableW = pageW - margin * 2;
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(12);
+  doc.setTextColor(17, 24, 39);
+  doc.text("AI Remediation Report", margin, y);
+  y += 16;
+
+  const lines = report.split("\n");
+  for (const raw of lines) {
+    const line = raw.trimEnd();
+
+    // Check remaining space
+    const pageH = doc.internal.pageSize.getHeight();
+    if (y > pageH - 60) {
+      doc.addPage();
+      y = 56;
+    }
+
+    if (line.startsWith("# ") && !line.startsWith("## ")) {
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(13);
+      doc.setTextColor(17, 24, 39);
+      const wrapped = doc.splitTextToSize(line.slice(2), usableW);
+      doc.text(wrapped, margin, y);
+      y += wrapped.length * 16 + 4;
+    } else if (line.startsWith("## ")) {
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(11);
+      doc.setTextColor(31, 41, 55);
+      const wrapped = doc.splitTextToSize(line.slice(3), usableW);
+      doc.text(wrapped, margin, y);
+      y += wrapped.length * 14 + 6;
+    } else if (line.startsWith("### ")) {
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9.5);
+      doc.setTextColor(55, 65, 81);
+      const wrapped = doc.splitTextToSize(line.slice(4), usableW);
+      doc.text(wrapped, margin, y);
+      y += wrapped.length * 13 + 4;
+    } else if (line.startsWith("#### ")) {
+      doc.setFont("helvetica", "bolditalic");
+      doc.setFontSize(9);
+      doc.setTextColor(75, 85, 99);
+      const wrapped = doc.splitTextToSize(line.slice(5), usableW);
+      doc.text(wrapped, margin, y);
+      y += wrapped.length * 12 + 2;
+    } else if (line.startsWith("- ") || line.startsWith("* ")) {
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8.5);
+      doc.setTextColor(17, 24, 39);
+      const text = line.slice(2).replace(/\*\*(.+?)\*\*/g, "$1").replace(/`([^`]+)`/g, "$1");
+      const wrapped = doc.splitTextToSize(`• ${text}`, usableW - 12);
+      doc.text(wrapped, margin + 10, y);
+      y += wrapped.length * 11 + 2;
+    } else if (line.startsWith("```")) {
+      // skip fence markers
+    } else if (line.trim() === "") {
+      y += 5;
+    } else {
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8.5);
+      doc.setTextColor(17, 24, 39);
+      const text = line.replace(/\*\*(.+?)\*\*/g, "$1").replace(/`([^`]+)`/g, "$1");
+      const wrapped = doc.splitTextToSize(text, usableW);
+      doc.text(wrapped, margin, y);
+      y += wrapped.length * 11 + 2;
+    }
+  }
+  return y;
+}
+
+export function exportScanPdf(detail, options = {}) {
   const doc = new jsPDF({ orientation: "portrait", unit: "pt", format: "a4" });
   const pageW = doc.internal.pageSize.getWidth();
   const margin = 40;
@@ -186,6 +259,14 @@ export function exportScanPdf(detail) {
         }
       },
     });
+    y = doc.lastAutoTable.finalY + 24;
+  }
+
+  // ── AI Report ─────────────────────────────────────────────────────────────
+  if (options.includeReport && detail.ai_report) {
+    doc.addPage();
+    y = 56;
+    y = addReportSection(doc, detail.ai_report, margin, y, pageW);
   }
 
   // ── Footer ────────────────────────────────────────────────────────────────

@@ -67,6 +67,8 @@ class ScanDetailSerializer(serializers.ModelSerializer):
             "nuclei_findings",
             "nuclei_tags",
             "error_message",
+            "report_status",
+            "ai_report",
             "created_at",
             "started_at",
             "completed_at",

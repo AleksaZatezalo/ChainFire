@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { scansApi } from "../api/client.js";
 import FindingsTable from "../components/FindingsTable.jsx";
+import ReportTab from "../components/ReportTab.jsx";
 import { exportScanPdf } from "../utils/exportPdf.js";
 
 const POLL_MS = 3000;
@@ -100,7 +101,10 @@ export default function ResultsPage() {
   };
 
   const selectScan = (id) => {
-    setSelectedId((prev) => (prev === id ? null : id));
+    setSelectedId((prev) => {
+      if (prev === id) return null;
+      return id;
+    });
     setDetailTab("semgrep");
   };
 
@@ -202,6 +206,14 @@ export default function ResultsPage() {
                     ↓ Export PDF
                   </button>
                 )}
+                {detail.status === "completed" && detail.ai_report && (
+                  <button
+                    className="btn btn-secondary btn-sm"
+                    onClick={() => exportScanPdf(detail, { includeReport: true })}
+                  >
+                    ↓ Export PDF + Report
+                  </button>
+                )}
               </div>
             </div>
 
@@ -239,14 +251,30 @@ export default function ResultsPage() {
               >
                 Nuclei ({detail.nuclei_findings?.length ?? 0})
               </button>
+              <button
+                className={`tab-btn${detailTab === "report" ? " active" : ""}`}
+                onClick={() => setDetailTab("report")}
+              >
+                Report
+                {detail.report_status === "running" || detail.report_status === "pending"
+                  ? <span className="spinner" style={{ width: 10, height: 10, marginLeft: 6 }} />
+                  : null}
+              </button>
             </div>
           </div>
 
-          <FindingsTable
-            type={detailTab}
-            findings={detailTab === "semgrep" ? detail.semgrep_findings : detail.nuclei_findings}
-            scanId={detail.id}
-          />
+          {detailTab !== "report" ? (
+            <FindingsTable
+              type={detailTab}
+              findings={detailTab === "semgrep" ? detail.semgrep_findings : detail.nuclei_findings}
+              scanId={detail.id}
+            />
+          ) : (
+            <ReportTab
+              scan={detail}
+              onReportUpdate={(updated) => setDetail(updated)}
+            />
+          )}
         </div>
       )}
     </>

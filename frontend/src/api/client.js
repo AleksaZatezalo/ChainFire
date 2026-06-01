@@ -64,10 +64,11 @@ export const wordlistsApi = {
 
 // ── Scans ──────────────────────────────────────────────────────────────────────
 export const scansApi = {
-  list:   ()     => http.get("/scans/"),
-  get:    (id)   => http.get(`/scans/${id}/`),
-  create: (data) => http.post("/scans/", data),
-  delete: (id)   => http.delete(`/scans/${id}/`),
+  list:           ()     => http.get("/scans/"),
+  get:            (id)   => http.get(`/scans/${id}/`),
+  create:         (data) => http.post("/scans/", data),
+  delete:         (id)   => http.delete(`/scans/${id}/`),
+  generateReport: (id)   => http.post(`/scans/${id}/generate-report/`),
 };
 
 // ── Exploit generation ────────────────────────────────────────────────────────

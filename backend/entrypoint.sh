@@ -23,6 +23,14 @@ schema_updates = [
         "scan_mode",
         "ALTER TABLE scanner_scan ADD COLUMN scan_mode VARCHAR(20) NOT NULL DEFAULT 'all'",
     ),
+    (
+        "report_status",
+        "ALTER TABLE scanner_scan ADD COLUMN report_status VARCHAR(20) NOT NULL DEFAULT ''",
+    ),
+    (
+        "ai_report",
+        "ALTER TABLE scanner_scan ADD COLUMN ai_report TEXT NOT NULL DEFAULT ''",
+    ),
 ]
 
 # Create ScheduledScan table if it doesn't exist

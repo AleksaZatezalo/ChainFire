@@ -24,6 +24,7 @@ from .serializers import (
 )
 from .services.scan_runner import start_scan
 from .services.exploit_runner import start_exploit_generation
+from .services.report_runner import start_report_generation
 
 
 class SemgrepRuleViewSet(ModelViewSet):
@@ -111,6 +112,34 @@ class ScanViewSet(ModelViewSet):
 
         start_exploit_generation(str(result.id))
         return Response(ExploitResultSerializer(result).data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=["post"], url_path="generate-report")
+    def generate_report(self, request, pk=None):
+        from accounts.models import ApiKey
+
+        scan = self.get_object()
+
+        if scan.status != Scan.STATUS_COMPLETED:
+            return Response(
+                {"detail": "Report generation requires a completed scan."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if scan.report_status == Scan.REPORT_STATUS_RUNNING:
+            return Response(ScanDetailSerializer(scan).data)
+
+        if not ApiKey.objects.filter(provider=ApiKey.PROVIDER_ANTHROPIC).exists():
+            return Response(
+                {"detail": "No Anthropic API key configured. An admin must add one in Admin → API Keys."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        scan.report_status = Scan.REPORT_STATUS_PENDING
+        scan.ai_report     = ""
+        scan.save(update_fields=["report_status", "ai_report"])
+
+        start_report_generation(str(scan.id))
+        return Response(ScanDetailSerializer(scan).data)
 
 
 class ExploitResultViewSet(ModelViewSet):
