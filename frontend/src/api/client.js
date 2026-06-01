@@ -70,6 +70,23 @@ export const scansApi = {
   delete: (id)   => http.delete(`/scans/${id}/`),
 };
 
+// ── Exploit generation ────────────────────────────────────────────────────────
+export const exploitsApi = {
+  list:     ()                    => http.get("/exploits/"),
+  get:      (id)                  => http.get(`/exploits/${id}/`),
+  delete:   (id)                  => http.delete(`/exploits/${id}/`),
+  generate: (scanId, findingIndex) =>
+    http.post(`/scans/${scanId}/generate-exploit/`, { finding_index: findingIndex }),
+};
+
+// ── API Keys (admin) ──────────────────────────────────────────────────────────
+export const apiKeysApi = {
+  list:   ()         => http.get("/auth/api-keys/"),
+  create: (data)     => http.post("/auth/api-keys/", data),
+  update: (id, data) => http.patch(`/auth/api-keys/${id}/`, data),
+  delete: (id)       => http.delete(`/auth/api-keys/${id}/`),
+};
+
 // ── Scheduled Scans ───────────────────────────────────────────────────────────
 export const scheduledScansApi = {
   list:   ()         => http.get("/scheduled-scans/"),

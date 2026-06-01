@@ -665,6 +665,104 @@ textarea.form-control {
   border-color: var(--text-muted);
 }
 
+/* ── Exploit panel ───────────────────────────────────────────────────────────── */
+.exploit-panel {
+  margin-top: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-app);
+  overflow: hidden;
+}
+
+.exploit-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  background: rgba(56, 139, 253, 0.06);
+}
+
+.exploit-thinking {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.exploit-result {
+  padding: 12px 14px;
+}
+
+.exploit-log {
+  margin-bottom: 12px;
+  font-size: 12px;
+}
+
+.exploit-log-title {
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: 0.5px;
+}
+
+.exploit-log-entry {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.exploit-log-entry:last-child {
+  border-bottom: none;
+}
+
+.exploit-log-tool {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  background: rgba(56, 139, 253, 0.15);
+  color: var(--blue-light);
+  padding: 1px 6px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.exploit-log-path {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.exploit-code-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.exploit-code {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--text);
+  overflow-x: auto;
+  white-space: pre;
+  max-height: 480px;
+  overflow-y: auto;
+}
+
 /* ── Tab bar ─────────────────────────────────────────────────────────────────── */
 .tab-bar {
   display: flex;

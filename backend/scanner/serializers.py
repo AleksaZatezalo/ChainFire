@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Scan, SemgrepRule, NucleiTemplate, Wordlist, ScheduledScan
+from .models import ExploitResult, Scan, SemgrepRule, NucleiTemplate, Wordlist, ScheduledScan
 
 
 class SemgrepRuleSerializer(serializers.ModelSerializer):
@@ -138,3 +138,44 @@ class ScheduledScanSerializer(serializers.ModelSerializer):
 
     def get_interval_display(self, obj):
         return obj.get_interval_display()
+
+
+class ExploitResultSerializer(serializers.ModelSerializer):
+    scan_label       = serializers.SerializerMethodField()
+    scan_target      = serializers.SerializerMethodField()
+    finding_name     = serializers.SerializerMethodField()
+    finding_severity = serializers.SerializerMethodField()
+    finding_template = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ExploitResult
+        fields = [
+            "id", "scan", "scan_label", "scan_target",
+            "finding_index", "finding_name", "finding_severity", "finding_template",
+            "status", "exploit_code", "agent_log", "error_message",
+            "created_at", "completed_at",
+        ]
+        read_only_fields = fields
+
+    def _finding(self, obj):
+        try:
+            return obj.scan.nuclei_findings[obj.finding_index]
+        except Exception:
+            return {}
+
+    def get_scan_label(self, obj):
+        return obj.scan.label or obj.scan.target_url
+
+    def get_scan_target(self, obj):
+        return obj.scan.target_url
+
+    def get_finding_name(self, obj):
+        f = self._finding(obj)
+        return (f.get("info") or {}).get("name") or f.get("template-id", "—")
+
+    def get_finding_severity(self, obj):
+        f = self._finding(obj)
+        return ((f.get("info") or {}).get("severity") or "info").lower()
+
+    def get_finding_template(self, obj):
+        return self._finding(obj).get("template-id", "—")

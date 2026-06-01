@@ -8,7 +8,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny, BasePermission
 from rest_framework.response import Response
 
-from .models import SECURITY_QUESTIONS, UserProfile
+from .models import SECURITY_QUESTIONS, ApiKey, UserProfile
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -236,3 +236,66 @@ def admin_delete_user_view(request, user_id):
         return Response({"detail": "Cannot delete admin accounts."}, status=400)
     user.delete()
     return Response({"detail": "User deleted."})
+
+
+# ── API Key management (admin only) ───────────────────────────────────────────
+
+def _masked_key(key_value: str) -> str:
+    if len(key_value) <= 8:
+        return "****"
+    return key_value[:8] + "..." + key_value[-4:]
+
+
+def _api_key_payload(obj: ApiKey) -> dict:
+    return {
+        "id":         str(obj.id),
+        "label":      obj.label,
+        "provider":   obj.provider,
+        "masked_key": _masked_key(obj.key_value),
+        "created_at": obj.created_at,
+        "updated_at": obj.updated_at,
+    }
+
+
+@api_view(["GET", "POST"])
+@permission_classes([IsStaff])
+def api_keys_view(request):
+    if request.method == "GET":
+        keys = ApiKey.objects.all()
+        return Response([_api_key_payload(k) for k in keys])
+
+    # POST — create
+    label     = request.data.get("label", "").strip()
+    provider  = request.data.get("provider", ApiKey.PROVIDER_ANTHROPIC)
+    key_value = request.data.get("key_value", "").strip()
+
+    if not label or not key_value:
+        return Response({"detail": "label and key_value are required."}, status=400)
+
+    valid_providers = {p[0] for p in ApiKey.PROVIDER_CHOICES}
+    if provider not in valid_providers:
+        return Response({"detail": "Invalid provider."}, status=400)
+
+    obj = ApiKey.objects.create(label=label, provider=provider, key_value=key_value)
+    return Response(_api_key_payload(obj), status=201)
+
+
+@api_view(["PATCH", "DELETE"])
+@permission_classes([IsStaff])
+def api_key_detail_view(request, key_id):
+    try:
+        obj = ApiKey.objects.get(id=key_id)
+    except ApiKey.DoesNotExist:
+        return Response({"detail": "Not found."}, status=404)
+
+    if request.method == "DELETE":
+        obj.delete()
+        return Response({"detail": "API key deleted."})
+
+    # PATCH — update label and/or key_value
+    if "label" in request.data:
+        obj.label = request.data["label"].strip() or obj.label
+    if "key_value" in request.data and request.data["key_value"].strip():
+        obj.key_value = request.data["key_value"].strip()
+    obj.save()
+    return Response(_api_key_payload(obj))

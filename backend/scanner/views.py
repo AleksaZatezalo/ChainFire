@@ -11,8 +11,9 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.viewsets import ModelViewSet
 
-from .models import NucleiTemplate, Scan, ScheduledScan, SemgrepRule, Wordlist
+from .models import ExploitResult, NucleiTemplate, Scan, ScheduledScan, SemgrepRule, Wordlist
 from .serializers import (
+    ExploitResultSerializer,
     NucleiTemplateSerializer,
     ScanCreateSerializer,
     ScanDetailSerializer,
@@ -22,6 +23,7 @@ from .serializers import (
     WordlistSerializer,
 )
 from .services.scan_runner import start_scan
+from .services.exploit_runner import start_exploit_generation
 
 
 class SemgrepRuleViewSet(ModelViewSet):
@@ -57,6 +59,65 @@ class ScanViewSet(ModelViewSet):
         scan = serializer.save()
         start_scan(str(scan.id))
 
+    @action(detail=True, methods=["post"], url_path="generate-exploit")
+    def generate_exploit(self, request, pk=None):
+        scan = self.get_object()
+
+        if scan.status != Scan.STATUS_COMPLETED:
+            return Response(
+                {"detail": "Exploit generation requires a completed scan."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        finding_index = request.data.get("finding_index")
+        if finding_index is None:
+            return Response(
+                {"detail": "finding_index is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            finding_index = int(finding_index)
+        except (TypeError, ValueError):
+            return Response(
+                {"detail": "finding_index must be an integer."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if finding_index < 0 or finding_index >= len(scan.nuclei_findings):
+            return Response(
+                {"detail": "finding_index is out of range."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Get or create; reset if not currently running
+        try:
+            result = ExploitResult.objects.get(scan=scan, finding_index=finding_index)
+            if result.status == ExploitResult.STATUS_RUNNING:
+                return Response(ExploitResultSerializer(result).data)
+            # Reset and re-run
+            result.status        = ExploitResult.STATUS_PENDING
+            result.exploit_code  = ""
+            result.agent_log     = []
+            result.error_message = ""
+            result.completed_at  = None
+            result.save()
+        except ExploitResult.DoesNotExist:
+            result = ExploitResult.objects.create(
+                scan=scan,
+                finding_index=finding_index,
+                status=ExploitResult.STATUS_PENDING,
+            )
+
+        start_exploit_generation(str(result.id))
+        return Response(ExploitResultSerializer(result).data, status=status.HTTP_201_CREATED)
+
+
+class ExploitResultViewSet(ModelViewSet):
+    queryset = ExploitResult.objects.all()
+    serializer_class = ExploitResultSerializer
+    http_method_names = ["get", "delete", "head", "options"]
+
 
 class ScheduledScanViewSet(ModelViewSet):
     queryset = ScheduledScan.objects.all()
@@ -81,17 +142,10 @@ class ScheduledScanViewSet(ModelViewSet):
 def health_check(request):
     """Return the availability and version of semgrep and nuclei binaries."""
     semgrep_path = shutil.which("semgrep")
-    nuclei_path = shutil.which("nuclei")
-
+    nuclei_path  = shutil.which("nuclei")
     return Response(
         {
-            "semgrep": {
-                "available": semgrep_path is not None,
-                "path": semgrep_path,
-            },
-            "nuclei": {
-                "available": nuclei_path is not None,
-                "path": nuclei_path,
-            },
+            "semgrep": {"available": semgrep_path is not None, "path": semgrep_path},
+            "nuclei":  {"available": nuclei_path  is not None, "path": nuclei_path},
         }
     )

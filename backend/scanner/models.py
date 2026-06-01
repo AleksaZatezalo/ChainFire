@@ -190,3 +190,34 @@ class ScheduledScan(models.Model):
 
     def __str__(self) -> str:
         return self.label or f"Schedule {self.id}"
+
+
+class ExploitResult(models.Model):
+    STATUS_PENDING   = "pending"
+    STATUS_RUNNING   = "running"
+    STATUS_COMPLETED = "completed"
+    STATUS_FAILED    = "failed"
+
+    STATUS_CHOICES = [
+        (STATUS_PENDING,   "Pending"),
+        (STATUS_RUNNING,   "Running"),
+        (STATUS_COMPLETED, "Completed"),
+        (STATUS_FAILED,    "Failed"),
+    ]
+
+    id            = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    scan          = models.ForeignKey(Scan, on_delete=models.CASCADE, related_name="exploits")
+    finding_index = models.IntegerField(help_text="Index into scan.nuclei_findings")
+    status        = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_PENDING)
+    exploit_code  = models.TextField(blank=True)
+    agent_log     = models.JSONField(default=list, help_text="Tool calls made during generation")
+    error_message = models.TextField(blank=True)
+    created_at    = models.DateTimeField(auto_now_add=True)
+    completed_at  = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        unique_together = [("scan", "finding_index")]
+
+    def __str__(self) -> str:
+        return f"Exploit for scan {self.scan_id} finding #{self.finding_index}"

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { authApi } from "../api/client.js";
+import { authApi, apiKeysApi } from "../api/client.js";
 
 function formatDate(iso) {
   if (!iso) return "—";
@@ -8,6 +8,166 @@ function formatDate(iso) {
   });
 }
 
+// ── API Key section ────────────────────────────────────────────────────────────
+function ApiKeySection() {
+  const [keys, setKeys]         = useState([]);
+  const [loading, setLoading]   = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm]         = useState({ label: "", provider: "anthropic", key_value: "" });
+  const [editId, setEditId]     = useState(null);
+  const [editForm, setEditForm] = useState({ label: "", key_value: "" });
+  const [error, setError]       = useState(null);
+  const [saving, setSaving]     = useState(false);
+
+  const load = useCallback(async () => {
+    try {
+      const res = await apiKeysApi.list();
+      setKeys(res.data);
+    } catch { setError("Failed to load API keys."); }
+    finally { setLoading(false); }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const handleCreate = async (e) => {
+    e.preventDefault();
+    if (!form.label || !form.key_value) { setError("Label and key are required."); return; }
+    try {
+      setSaving(true); setError(null);
+      await apiKeysApi.create(form);
+      setForm({ label: "", provider: "anthropic", key_value: "" });
+      setShowForm(false);
+      load();
+    } catch (err) {
+      setError(err?.response?.data?.detail || "Failed to save key.");
+    } finally { setSaving(false); }
+  };
+
+  const handleUpdate = async (id) => {
+    if (!editForm.label && !editForm.key_value) return;
+    try {
+      setSaving(true); setError(null);
+      const payload = {};
+      if (editForm.label)     payload.label     = editForm.label;
+      if (editForm.key_value) payload.key_value = editForm.key_value;
+      await apiKeysApi.update(id, payload);
+      setEditId(null);
+      load();
+    } catch (err) {
+      setError(err?.response?.data?.detail || "Failed to update key.");
+    } finally { setSaving(false); }
+  };
+
+  const handleDelete = async (id) => {
+    if (!window.confirm("Delete this API key?")) return;
+    try { await apiKeysApi.delete(id); load(); }
+    catch { setError("Failed to delete key."); }
+  };
+
+  const startEdit = (key) => {
+    setEditId(key.id);
+    setEditForm({ label: key.label, key_value: "" });
+  };
+
+  return (
+    <div className="card" style={{ marginBottom: 20 }}>
+      <div style={{ padding: "14px 20px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <span style={{ fontWeight: 600, fontSize: 13 }}>API Keys</span>
+        <button className="btn btn-primary btn-sm" onClick={() => setShowForm((v) => !v)}>
+          {showForm ? "✕ Cancel" : "+ Add Key"}
+        </button>
+      </div>
+
+      {error && <div className="alert alert-error" style={{ margin: "12px 16px 0" }}>{error}</div>}
+
+      {showForm && (
+        <form onSubmit={handleCreate} style={{ padding: "16px 20px", borderBottom: "1px solid var(--border)" }}>
+          <div className="form-group">
+            <label className="form-label">Label</label>
+            <input className="form-control" placeholder="e.g. Claude API key" value={form.label}
+              onChange={(e) => setForm((p) => ({ ...p, label: e.target.value }))} />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Provider</label>
+            <select className="form-control" value={form.provider}
+              onChange={(e) => setForm((p) => ({ ...p, provider: e.target.value }))}>
+              <option value="anthropic">Anthropic (Claude)</option>
+            </select>
+          </div>
+          <div className="form-group" style={{ marginBottom: 0 }}>
+            <label className="form-label">API Key</label>
+            <input className="form-control" type="password" placeholder="sk-ant-api-..." value={form.key_value}
+              onChange={(e) => setForm((p) => ({ ...p, key_value: e.target.value }))} />
+          </div>
+          <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 16, gap: 8 }}>
+            <button type="submit" className="btn btn-primary btn-sm" disabled={saving}>
+              {saving ? "Saving…" : "Save Key"}
+            </button>
+          </div>
+        </form>
+      )}
+
+      {loading ? (
+        <div className="loading-state" style={{ padding: 24 }}><div className="spinner" /></div>
+      ) : keys.length === 0 ? (
+        <div className="empty-state" style={{ padding: 32 }}>
+          <p className="empty-state-body">No API keys configured. Add a key to enable exploit generation.</p>
+        </div>
+      ) : (
+        <div className="table-wrapper">
+          <table className="table">
+            <thead>
+              <tr><th>Label</th><th>Provider</th><th>Key</th><th>Updated</th><th /></tr>
+            </thead>
+            <tbody>
+              {keys.map((k) => (
+                <React.Fragment key={k.id}>
+                  <tr>
+                    <td style={{ fontWeight: 500 }}>{k.label}</td>
+                    <td className="text-muted text-sm">Anthropic</td>
+                    <td className="font-mono text-sm" style={{ color: "var(--text-muted)" }}>{k.masked_key}</td>
+                    <td className="text-muted text-sm">{formatDate(k.updated_at)}</td>
+                    <td>
+                      <div style={{ display: "flex", gap: 6 }}>
+                        <button className="btn btn-secondary btn-sm" onClick={() => startEdit(k)}>Edit</button>
+                        <button className="btn btn-danger btn-sm" onClick={() => handleDelete(k.id)}>Delete</button>
+                      </div>
+                    </td>
+                  </tr>
+                  {editId === k.id && (
+                    <tr>
+                      <td colSpan={5} style={{ padding: "0 14px 12px" }}>
+                        <div style={{ display: "flex", gap: 8, alignItems: "flex-end", flexWrap: "wrap" }}>
+                          <div style={{ flex: 1, minWidth: 140 }}>
+                            <label className="form-label" style={{ fontSize: 11 }}>Label</label>
+                            <input className="form-control" value={editForm.label}
+                              onChange={(e) => setEditForm((p) => ({ ...p, label: e.target.value }))} />
+                          </div>
+                          <div style={{ flex: 2, minWidth: 200 }}>
+                            <label className="form-label" style={{ fontSize: 11 }}>New Key Value (leave blank to keep current)</label>
+                            <input className="form-control" type="password" placeholder="sk-ant-api-..."
+                              value={editForm.key_value}
+                              onChange={(e) => setEditForm((p) => ({ ...p, key_value: e.target.value }))} />
+                          </div>
+                          <button className="btn btn-primary btn-sm" disabled={saving} onClick={() => handleUpdate(k.id)}>
+                            {saving ? "Saving…" : "Save"}
+                          </button>
+                          <button className="btn btn-secondary btn-sm" onClick={() => setEditId(null)}>Cancel</button>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </React.Fragment>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Main admin page ────────────────────────────────────────────────────────────
 export default function AdminPage() {
   const [users, setUsers]     = useState([]);
   const [loading, setLoading] = useState(true);
@@ -159,6 +319,9 @@ export default function AdminPage() {
           </div>
         )}
       </div>
+
+      {/* ── API Keys ─────────────────────────────────────────────────────── */}
+      <ApiKeySection />
 
       {/* ── Admins ───────────────────────────────────────────────────────── */}
       <div className="card">

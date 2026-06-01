@@ -64,6 +64,7 @@ export default function ScheduledScansPage() {
   const [loading, setLoading]     = useState(true);
   const [error, setError]         = useState(null);
   const [showForm, setShowForm]   = useState(false);
+  const [editingId, setEditingId] = useState(null);  // null = create, id = edit
   const [form, setForm]           = useState(EMPTY_FORM);
   const [submitError, setSubmitError] = useState(null);
   const [submitting, setSubmitting]   = useState(false);
@@ -101,6 +102,32 @@ export default function ScheduledScansPage() {
     return errs;
   };
 
+  const openCreate = () => {
+    setEditingId(null);
+    setForm(EMPTY_FORM);
+    setSubmitError(null);
+    setFormErrors({});
+    setShowForm(true);
+  };
+
+  const openEdit = (s) => {
+    setEditingId(s.id);
+    setForm({
+      label:           s.label || "",
+      target_url:      s.target_url || "",
+      source_path:     s.source_path || "",
+      scan_mode:       s.scan_mode || "semgrep_all",
+      semgrep_rule:    s.semgrep_rule || "",
+      nuclei_template: s.nuclei_template || "",
+      wordlist:        s.wordlist || "",
+      min_severity:    s.min_severity || "info",
+      interval:        s.interval || "24h",
+    });
+    setSubmitError(null);
+    setFormErrors({});
+    setShowForm(true);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     const errs = validate();
@@ -115,25 +142,27 @@ export default function ScheduledScansPage() {
       scan_mode:    form.scan_mode,
       min_severity: form.min_severity,
       interval:     form.interval,
+      wordlist:     form.wordlist || null,
+      semgrep_rule:    form.scan_mode === "custom" ? (form.semgrep_rule || null) : null,
+      nuclei_template: form.scan_mode === "custom" ? (form.nuclei_template || null) : null,
     };
-
-    if (form.wordlist) payload.wordlist = form.wordlist;
-    if (form.scan_mode === "custom") {
-      if (form.semgrep_rule)    payload.semgrep_rule    = form.semgrep_rule;
-      if (form.nuclei_template) payload.nuclei_template = form.nuclei_template;
-    }
 
     try {
       setSubmitting(true);
-      await scheduledScansApi.create(payload);
+      if (editingId) {
+        await scheduledScansApi.update(editingId, payload);
+      } else {
+        await scheduledScansApi.create(payload);
+      }
       setForm(EMPTY_FORM);
       setShowForm(false);
+      setEditingId(null);
       loadSchedules();
     } catch (err) {
       setSubmitError(
         err?.response?.data?.target_url?.[0] ||
         err?.response?.data?.detail ||
-        "Failed to create schedule."
+        `Failed to ${editingId ? "update" : "create"} schedule.`
       );
     } finally {
       setSubmitting(false);
@@ -170,7 +199,7 @@ export default function ScheduledScansPage() {
             {schedules.length} schedule{schedules.length !== 1 ? "s" : ""} configured
           </p>
         </div>
-        <button className="btn btn-primary" onClick={() => setShowForm((v) => !v)}>
+        <button className="btn btn-primary" onClick={() => showForm ? setShowForm(false) : openCreate()}>
           {showForm ? "✕ Cancel" : "+ New Schedule"}
         </button>
       </div>
@@ -180,7 +209,7 @@ export default function ScheduledScansPage() {
       {/* ── Create form ─────────────────────────────────────────────────── */}
       {showForm && (
         <div className="card card-body" style={{ marginBottom: 20 }}>
-          <h2 style={sectionHeading}>New Scheduled Scan</h2>
+          <h2 style={sectionHeading}>{editingId ? "Edit Scheduled Scan" : "New Scheduled Scan"}</h2>
 
           {submitError && <div className="alert alert-error">{submitError}</div>}
 
@@ -294,12 +323,12 @@ export default function ScheduledScansPage() {
               <button
                 type="button"
                 className="btn btn-secondary"
-                onClick={() => { setShowForm(false); setForm(EMPTY_FORM); setSubmitError(null); }}
+                onClick={() => { setShowForm(false); setEditingId(null); setForm(EMPTY_FORM); setSubmitError(null); }}
               >
                 Cancel
               </button>
               <button type="submit" className="btn btn-primary" disabled={submitting}>
-                {submitting ? "Saving…" : "Save Schedule"}
+                {submitting ? "Saving…" : (editingId ? "Save Changes" : "Save Schedule")}
               </button>
             </div>
           </form>
@@ -359,6 +388,12 @@ export default function ScheduledScansPage() {
                           onClick={() => handleToggle(s.id)}
                         >
                           {s.enabled ? "Disable" : "Enable"}
+                        </button>
+                        <button
+                          className="btn btn-secondary btn-sm"
+                          onClick={() => openEdit(s)}
+                        >
+                          Edit
                         </button>
                         <button
                           className="btn btn-danger btn-sm"

@@ -5,6 +5,7 @@ from .views import (
     NucleiTemplateViewSet,
     WordlistViewSet,
     ScanViewSet,
+    ExploitResultViewSet,
     ScheduledScanViewSet,
     health_check,
 )
@@ -15,6 +16,7 @@ router.register("nuclei-templates", NucleiTemplateViewSet, basename="nuclei-temp
 router.register("wordlists", WordlistViewSet, basename="wordlists")
 router.register("scans", ScanViewSet, basename="scans")
 router.register("scheduled-scans", ScheduledScanViewSet, basename="scheduled-scans")
+router.register("exploits", ExploitResultViewSet, basename="exploits")
 
 urlpatterns = [
     path("", include(router.urls)),

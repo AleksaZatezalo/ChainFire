@@ -9,9 +9,12 @@ urlpatterns = [
     path("logout/",           views.logout_view,           name="auth-logout"),
     path("security-question/", views.security_question_view, name="auth-security-question"),
     path("reset-password/",   views.reset_password_view,  name="auth-reset-password"),
-    # Admin
+    # Admin — users
     path("users/",                        views.admin_users_view,       name="admin-users"),
     path("users/<int:user_id>/approve/",  views.admin_approve_view,     name="admin-approve"),
     path("users/<int:user_id>/revoke/",   views.admin_revoke_view,      name="admin-revoke"),
     path("users/<int:user_id>/",          views.admin_delete_user_view, name="admin-delete-user"),
+    # Admin — API keys
+    path("api-keys/",            views.api_keys_view,       name="admin-api-keys"),
+    path("api-keys/<uuid:key_id>/", views.api_key_detail_view, name="admin-api-key-detail"),
 ]

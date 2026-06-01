@@ -9,6 +9,7 @@ import WordlistsPage from "./pages/WordlistsPage.jsx";
 import ResultsPage from "./pages/ResultsPage.jsx";
 import ScheduledScansPage from "./pages/ScheduledScansPage.jsx";
 import AdminPage from "./pages/AdminPage.jsx";
+import ExploitsPage from "./pages/ExploitsPage.jsx";
 import LoginPage from "./pages/LoginPage.jsx";
 import RegisterPage from "./pages/RegisterPage.jsx";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage.jsx";
@@ -64,13 +65,14 @@ function AppRoutes() {
         <ProtectedRoute>
           <Layout>
             <Routes>
-              <Route path="/"                  element={<Navigate to="/scanner" replace />} />
+              <Route path="/"                  element={<Navigate to="/results" replace />} />
               <Route path="/scanner"           element={<ScannerPage />} />
               <Route path="/results"           element={<ResultsPage />} />
               <Route path="/scheduled-scans"   element={<ScheduledScansPage />} />
               <Route path="/semgrep-rules"     element={<SemgrepRulesPage />} />
               <Route path="/nuclei-templates"  element={<NucleiTemplatesPage />} />
               <Route path="/wordlists"         element={<WordlistsPage />} />
+              <Route path="/exploits"          element={<ExploitsPage />} />
               <Route path="/admin"             element={
                 <ProtectedRoute adminOnly>
                   <AdminPage />

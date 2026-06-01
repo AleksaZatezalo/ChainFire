@@ -1,3 +1,5 @@
+import uuid
+
 from django.contrib.auth.models import User
 from django.db import models
 
@@ -22,3 +24,25 @@ class UserProfile(models.Model):
 
     def __str__(self) -> str:
         return f"Profile({self.user.username})"
+
+
+class ApiKey(models.Model):
+    PROVIDER_ANTHROPIC = "anthropic"
+    PROVIDER_CHOICES = [
+        (PROVIDER_ANTHROPIC, "Anthropic (Claude)"),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    label = models.CharField(max_length=255, help_text="Friendly name, e.g. 'Production key'")
+    provider = models.CharField(
+        max_length=50, choices=PROVIDER_CHOICES, default=PROVIDER_ANTHROPIC
+    )
+    key_value = models.CharField(max_length=512)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-updated_at"]
+
+    def __str__(self) -> str:
+        return f"{self.label} ({self.provider})"

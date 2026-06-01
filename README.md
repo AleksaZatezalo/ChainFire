@@ -7,9 +7,13 @@ A web-based security testing platform that chains **Semgrep** (SAST) and **Nucle
 - **Chained Scan** — Semgrep findings automatically drive Nuclei template selection. No manual tag configuration.
 - **Custom Rules mode** — Run a specific Semgrep rule and Nuclei template for precise control.
 - **Scheduled scans** — Run any scan on a recurring schedule (15 min → 7 days). Fires automatically in the background.
+- **Agentic exploit generation** — Click any Nuclei finding to trigger an AI agent (Claude claude-opus-4-6) that probes the target and produces a self-contained Python exploit script. Generation runs in the background — navigate away without losing progress.
+- **Exploits page** — Browse, inspect, download, and delete all generated exploits in one place.
+- **Scheduled scans** — Run any scan on a recurring schedule (15 min → 7 days). Fires automatically in the background. Schedules can be edited after creation.
 - **Authentication** — Session-based login with admin approval workflow and security-question password reset.
 - **PDF export** — Download a formatted report of any completed scan.
 - **Resource management** — Create and edit Semgrep rules, Nuclei templates, and wordlists directly in the browser.
+- **API key management** — Admins store the Anthropic API key in the Admin panel; no environment variables needed.
 
 ## Architecture
 
@@ -38,7 +42,7 @@ Two containers managed by Docker Compose:
 | `frontend` | nginx serving the React app on port 1337         |
 | `backend`  | Django REST API + Semgrep + Nuclei + scan runner |
 
-Scans run in background threads so the API stays responsive. The frontend polls scan status every 3 seconds until completion.
+Scans and exploit generation run in background threads so the API stays responsive. The frontend polls scan and exploit status automatically.
 
 ## Prerequisites
 
@@ -90,6 +94,7 @@ Admins can access `/admin` (via the sidebar) to:
 - **Approve** or **reject** pending user registrations.
 - **Revoke** access from existing users.
 - **Delete** user accounts.
+- **Manage API keys** — add, update, or remove the Anthropic API key used for exploit generation.
 
 ## Scanning Source Code
 
@@ -132,7 +137,7 @@ Navigate to **Scheduled Scans** and click **+ New Schedule**.
 | Wordlist         | Expands the target into an endpoint list                     |
 | Min Severity     | Minimum Semgrep severity for tag mapping                     |
 
-A background thread checks every 60 seconds for due schedules and creates a regular scan record for each one. Results appear in the **Results** page. Schedules can be individually enabled, disabled, or deleted.
+A background thread checks every 60 seconds for due schedules and creates a regular scan record for each one. Results appear in the **Results** page. Schedules can be individually enabled, disabled, edited, or deleted.
 
 ## Usage
 
@@ -218,6 +223,18 @@ Navigate to **Results**. Click any row to expand findings. Semgrep and Nuclei fi
 
 For any completed scan, click **↓ Export PDF** to download a formatted report containing scan metadata, all Semgrep findings, and all Nuclei findings with severity colour coding.
 
+### 6. Exploit Generation
+
+On any Nuclei finding row, click **⚡ Exploit**. ChainFire launches an AI agent (Claude claude-opus-4-6) that:
+
+1. Verifies the target is reachable.
+2. Probes the vulnerable endpoint with tailored payloads.
+3. Produces a standalone `exploit.py` script you can download.
+
+Generation runs in the background — you can navigate away and return to the **Exploits** page to check progress and download the result. Only safe, non-destructive payloads are used (e.g. `echo PWNEDBYRESEARCHER`).
+
+**Prerequisite:** An admin must add an Anthropic API key under Admin → API Keys before exploit generation will work.
+
 ## Semgrep → Nuclei Tag Mapping
 
 The tag mapper tokenises each Semgrep rule ID on `[.-_/]` and looks up tokens in a keyword table. Examples:
@@ -252,7 +269,7 @@ dast/
 │   │   ├── views.py                 # register, login, logout, reset, admin endpoints
 │   │   └── urls.py
 │   └── scanner/
-│       ├── models.py                # SemgrepRule, NucleiTemplate, Wordlist, Scan, ScheduledScan
+│       ├── models.py                # SemgrepRule, NucleiTemplate, Wordlist, Scan, ScheduledScan, ExploitResult
 │       ├── serializers.py
 │       ├── views.py                 # DRF ViewSets + health endpoint
 │       ├── urls.py
@@ -264,7 +281,8 @@ dast/
 │           ├── tag_mapper.py        # Semgrep finding → Nuclei tag mapping
 │           ├── semgrep_service.py   # Semgrep subprocess wrapper
 │           ├── nuclei_service.py    # Nuclei subprocess wrapper
-│           └── scan_runner.py       # Background scan pipeline + path/URL translation
+│           ├── scan_runner.py       # Background scan pipeline + path/URL translation
+│           └── exploit_runner.py    # Agentic exploit generation (Claude + tool use)
 └── frontend/
     ├── Dockerfile
     ├── nginx.conf
@@ -276,20 +294,21 @@ dast/
         ├── components/
         │   ├── Layout.jsx           # Sidebar nav + user/logout footer
         │   ├── ResourceManager.jsx
-        │   └── FindingsTable.jsx
+        │   └── FindingsTable.jsx    # Semgrep/Nuclei tables + ExploitPanel
         ├── utils/
         │   └── exportPdf.js         # jsPDF scan report generator
         └── pages/
             ├── LoginPage.jsx
             ├── RegisterPage.jsx
             ├── ForgotPasswordPage.jsx
-            ├── AdminPage.jsx
+            ├── AdminPage.jsx        # User management + API key management
             ├── ScannerPage.jsx
             ├── ResultsPage.jsx
             ├── ScheduledScansPage.jsx
             ├── SemgrepRulesPage.jsx
             ├── NucleiTemplatesPage.jsx
-            └── WordlistsPage.jsx
+            ├── WordlistsPage.jsx
+            └── ExploitsPage.jsx     # Browse, download, delete exploit results
 ```
 
 ## API Reference
@@ -333,16 +352,29 @@ All endpoints under `/api/` require an authenticated, approved session except wh
 | POST   | `/api/wordlists/`                      | Create wordlist                    |
 | PUT    | `/api/wordlists/{id}/`                 | Update wordlist                    |
 | DELETE | `/api/wordlists/{id}/`                 | Delete wordlist                    |
-| GET    | `/api/scans/`                          | List scans                         |
-| POST   | `/api/scans/`                          | Start a new scan                   |
-| GET    | `/api/scans/{id}/`                     | Get scan detail + findings         |
-| DELETE | `/api/scans/{id}/`                     | Delete scan                        |
-| GET    | `/api/scheduled-scans/`               | List scheduled scans               |
-| POST   | `/api/scheduled-scans/`               | Create scheduled scan              |
-| PUT    | `/api/scheduled-scans/{id}/`          | Update scheduled scan              |
-| DELETE | `/api/scheduled-scans/{id}/`          | Delete scheduled scan              |
-| POST   | `/api/scheduled-scans/{id}/toggle/`   | Enable / disable scheduled scan    |
-| GET    | `/api/health/`                         | Binary availability check (public) |
+| GET    | `/api/scans/`                               | List scans                              |
+| POST   | `/api/scans/`                               | Start a new scan                        |
+| GET    | `/api/scans/{id}/`                          | Get scan detail + findings              |
+| DELETE | `/api/scans/{id}/`                          | Delete scan                             |
+| POST   | `/api/scans/{id}/generate-exploit/`         | Start exploit generation for a finding  |
+| GET    | `/api/exploits/`                            | List all exploit results                |
+| GET    | `/api/exploits/{id}/`                       | Get exploit result detail               |
+| DELETE | `/api/exploits/{id}/`                       | Delete exploit result                   |
+| GET    | `/api/scheduled-scans/`                     | List scheduled scans                    |
+| POST   | `/api/scheduled-scans/`                     | Create scheduled scan                   |
+| PUT    | `/api/scheduled-scans/{id}/`                | Update scheduled scan                   |
+| DELETE | `/api/scheduled-scans/{id}/`                | Delete scheduled scan                   |
+| POST   | `/api/scheduled-scans/{id}/toggle/`         | Enable / disable scheduled scan         |
+| GET    | `/api/health/`                              | Binary availability check (public)      |
+
+### API Keys (`/api/auth/`) — admin only
+
+| Method | Path                        | Description                        |
+|--------|-----------------------------|------------------------------------|
+| GET    | `/api/auth/api-keys/`       | List API keys (values masked)      |
+| POST   | `/api/auth/api-keys/`       | Add an API key                     |
+| PATCH  | `/api/auth/api-keys/{id}/`  | Update label or key value          |
+| DELETE | `/api/auth/api-keys/{id}/`  | Delete an API key                  |
 
 ## Security Notes
 

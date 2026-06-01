@@ -3,12 +3,13 @@ import { NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
 
 const NAV_ITEMS = [
-  { to: "/scanner",          icon: "▶",  label: "Scanner" },
   { to: "/results",          icon: "📋", label: "Results" },
+  { to: "/scanner",          icon: "▶",  label: "Scanner" },
   { to: "/scheduled-scans",  icon: "🕐", label: "Scheduled Scans" },
   { to: "/semgrep-rules",    icon: "📝", label: "Semgrep Rules" },
   { to: "/nuclei-templates", icon: "🧬", label: "Nuclei Templates" },
   { to: "/wordlists",        icon: "📂", label: "Wordlists" },
+  { to: "/exploits",         icon: "⚡", label: "Exploits" },
 ];
 
 export default function Layout({ children }) {

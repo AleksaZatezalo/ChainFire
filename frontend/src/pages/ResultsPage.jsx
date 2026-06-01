@@ -245,6 +245,7 @@ export default function ResultsPage() {
           <FindingsTable
             type={detailTab}
             findings={detailTab === "semgrep" ? detail.semgrep_findings : detail.nuclei_findings}
+            scanId={detail.id}
           />
         </div>
       )}
