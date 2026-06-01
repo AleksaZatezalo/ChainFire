@@ -9,7 +9,6 @@ A web-based security testing platform that chains **Semgrep** (SAST) and **Nucle
 - **Scheduled scans** — Run any scan on a recurring schedule (15 min → 7 days). Fires automatically in the background.
 - **Agentic exploit generation** — Click any Nuclei finding to trigger an AI agent (Claude claude-opus-4-6) that probes the target and produces a self-contained Python exploit script. Generation runs in the background — navigate away without losing progress.
 - **Exploits page** — Browse, inspect, download, and delete all generated exploits in one place.
-- **Scheduled scans** — Run any scan on a recurring schedule (15 min → 7 days). Fires automatically in the background. Schedules can be edited after creation.
 - **Authentication** — Session-based login with admin approval workflow and security-question password reset.
 - **PDF export** — Download a formatted report of any completed scan.
 - **Resource management** — Create and edit Semgrep rules, Nuclei templates, and wordlists directly in the browser.
